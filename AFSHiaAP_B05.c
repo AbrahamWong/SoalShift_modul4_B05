@@ -74,53 +74,6 @@ void decrypt(char *sisop)
     }
 }
 
-// Nomor 3 --> gak work
-int nomor3(struct stat st, struct dirent *de)
-{
-		int breakIt = 0;
-		
-		struct group *grup; gid_t groupID;
-		struct passwd *pwd;	uid_t userID;
-		
-		st.st_ino = de->d_ino;
-		st.st_mode = de->d_type << 12;
-
-		userID = st.st_uid;
-		groupID = st.st_gid;
-		
-		pwd = getpwuid(userID);
-		grup = getgrgid(groupID);
-
-		if (!(strcmp(pwd->pw_name, "chipset")) 
-					|| !(strcmp(pwd->pw_name, "ic_controller"))
-					|| !(strcmp(grup->gr_name, "rusak"))
-					|| st.st_mode < 400)
-    {
-			char filename[1000];					sprintf(filename, "%s%s", dirpath, de->d_name);
-			char data[2500];
-			int gID = (int) groupID;
-			int uID = (int) userID;
-			char strTime[1000];
-			time_t za_warudo = time(NULL);
-			struct tm time = *localtime(&za_warudo);
-			
-			sprintf(strTime, "%02d/%02d/%04d - %02d:%02d:%02d", time.tm_mday, time.tm_mon + 1, time.tm_year + 1900, time.tm_hour, time.tm_min, time.tm_sec);
-			
-			remove(filename);
-
-			FILE *fo = fopen("/home/abraham/shift4/V[EOr[c[Y`HDH", "rw");
-			decrypt(de->d_name);
-			sprintf(data, "Filename: %s GID: %d UID: %d Last Access: %s\n", de->d_name, gID, uID, strTime);
-			fprintf(fo, "%s\n", data);
-			fclose(fo);
-			
-			// ubah breakIt menjadi 1
-			breakIt = 1;
-		}
-
-		return breakIt;
-}
-
 static int xmp_getattr(const char *path, struct stat *stbuf)
 {
   int res;
@@ -170,13 +123,56 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	while ((de = readdir(dp)) != NULL) {
 		struct stat st;		
 		memset(&st, 0, sizeof(st));
-		st.st_ino = de->d_ino;
-		st.st_mode = de->d_type << 12;
 
 		// Nomor 3
-		int x = nomor3(st, de);
-		if(x)
+		char nama[2000];
+		snprintf(nama, 2000, "%s/%s", fpath, de->d_name);
+		stat(nama, &st);
+
+		st.st_ino = de->d_ino;
+		st.st_mode = de->d_type << 12;
+		
+		struct group *grup; gid_t groupID;
+		struct passwd *pwd;	uid_t userID;
+
+		userID = st.st_uid;
+		groupID = st.st_gid;
+		
+		pwd = getpwuid(userID);
+		grup = getgrgid(groupID);
+
+		FILE *fnew = fopen(nama, "r");
+		int deniedAccess = 0;
+		if(fnew == NULL)
+		{
+			if(errno == EACCES){
+					deniedAccess = 1;
+			}
+		}
+
+		if (!(strcmp(pwd->pw_name, "chipset")) 
+					|| !(strcmp(pwd->pw_name, "ic_controller"))
+					|| !(strcmp(grup->gr_name, "rusak"))
+					|| deniedAccess)
+    {
+			char data[2500];
+			int gID = (int) groupID;
+			int uID = (int) userID;
+			char strTime[1000];
+			time_t za_warudo = time(NULL);
+			struct tm time = *localtime(&za_warudo);
+			
+			sprintf(strTime, "%02d/%02d/%04d - %02d:%02d:%02d", time.tm_mday, time.tm_mon + 1, time.tm_year + 1900, time.tm_hour, time.tm_min, time.tm_sec);
+			
+			remove(nama);
+
+			FILE *fo = fopen("/home/abraham/shift4/V[EOr[c[Y`HDH", "a+");
+			decrypt(de->d_name);
+			sprintf(data, "Filename: %s GID: %d UID: %d Last Access: %s\n", de->d_name, gID, uID, strTime);
+			fprintf(fo, "%s\n", data);
+			fclose(fo);
 			continue;
+		}
 
 		// Nomor 1
 		decrypt(de->d_name);
