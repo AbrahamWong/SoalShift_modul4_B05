@@ -18,8 +18,8 @@
 // ./something [namafile] -d
 
 static const char *dirpath = "/home/abraham/shift4"; 
-char cipher[]   = {"qE1~ YMUR2\"`hNIdPzi%^t@(Ao:=CQ,nx4S[7mHFye#aT6+v)DfKL$r?bkOGB>}!9_wV\']jcp5JZ&Xl|\\8s;g<{3.u*W-0"};
-int key = 17;
+char cipher[]   = "qE1~ YMUR2\"`hNIdPzi%^t@(Ao:=CQ,nx4S[7mHFye#aT6+v)DfKL$r?bkOGB>}!9_wV\']jcp5JZ&Xl|\\8s;g<{3.u*W-0";
+int key = 31;
 
 // Nomor 1
 void encrypt(char *sisop)
@@ -95,8 +95,8 @@ static int xmp_getattr(const char *path, struct stat *stbuf)
 static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		       off_t offset, struct fuse_file_info *fi)
 {
-	char fpath[1000];
-	char mpath[1000];
+	char fpath[300];
+	char mpath[300];
 	strcpy(mpath, path);
 
 	// Nomor 1
@@ -120,14 +120,20 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	if (dp == NULL)
 		return -errno;
 
+	// Debugging
+	int count = 0;
+
 	while ((de = readdir(dp)) != NULL) {
 		struct stat st;		
 		memset(&st, 0, sizeof(st));
 
 		// Nomor 3
-		char nama[2000];
-		snprintf(nama, 2000, "%s/%s", fpath, de->d_name);
+		char nama[300];
+		sprintf(nama, "%s/%s", fpath, de->d_name);
+		int panjang = strlen(nama);
+		nama[panjang] = '\0';
 		stat(nama, &st);
+		printf("%s\n", nama);
 
 		st.st_ino = de->d_ino;
 		st.st_mode = de->d_type << 12;
@@ -141,24 +147,34 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		pwd = getpwuid(userID);
 		grup = getgrgid(groupID);
 
-		FILE *fnew = fopen(nama, "r");
+		// Gak gini caranya ngecek readnya
+		// FILE *fnew = fopen(nama, "r");
 		int deniedAccess = 0;
-		if(fnew == NULL)
+		// if(fnew == NULL)
+		// {
+		// 	if(errno == EACCES){
+		// 			deniedAccess = 1;
+		// 	}
+		// 	else if(errno = ENOENT)
+		// 			printf("Why???\n\n");
+		// 			// continue;
+		// }
+
+		int akses = access(nama, R_OK);
+		if (akses)
 		{
-			if(errno == EACCES){
-					deniedAccess = 1;
-			}
+			if (errno = EACCES)
+				deniedAccess = 1;
 		}
 
-		if (!(strcmp(pwd->pw_name, "chipset")) 
-					|| !(strcmp(pwd->pw_name, "ic_controller"))
-					|| !(strcmp(grup->gr_name, "rusak"))
-					|| deniedAccess)
+		if ( (!(strcmp(pwd->pw_name, "chipset")) || !(strcmp(pwd->pw_name, "ic_controller")) )
+					&& !(strcmp(grup->gr_name, "rusak"))
+					&& deniedAccess)
     {
-			char data[2500];
+			char data[500];
 			int gID = (int) groupID;
 			int uID = (int) userID;
-			char strTime[1000];
+			char strTime[100];
 			time_t za_warudo = time(NULL);
 			struct tm time = *localtime(&za_warudo);
 			
@@ -166,7 +182,12 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 			
 			remove(nama);
 
-			FILE *fo = fopen("/home/abraham/shift4/V[EOr[c[Y`HDH", "a+");
+			// Perubahan Demo
+			char filemiris[20] = "filemiris.txt", fopenThis[300];
+			encrypt(filemiris);
+			sprintf(fopenThis, "/home/abraham/shift4/%s", filemiris);
+
+			FILE *fo = fopen(fopenThis, "a+");
 			decrypt(de->d_name);
 			sprintf(data, "Filename: %s GID: %d UID: %d Last Access: %s\n", de->d_name, gID, uID, strTime);
 			fprintf(fo, "%s\n", data);
@@ -176,6 +197,12 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 		// Nomor 1
 		decrypt(de->d_name);
+		printf("%s --> ", de->d_name);
+
+		// Perubahan demo
+		char root[300];
+		strcpy(root, de->d_name);
+		encrypt(root);
 
 		/*
 			Secara default akan ada hidden folder . dan ..
@@ -184,11 +211,14 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 			ke dalam filler.
 		*/
 		
-		if(strcmp(de->d_name, "c") == 0 || strcmp(de->d_name, "cc") == 0)
+		if(strcmp(root, ".") == 0 || strcmp(root, "..") == 0)
 			continue;
 		
 		res = (filler(buf, de->d_name, &st, 0));
 			if(res!=0) break;
+		
+		count++;
+		printf("%d\n", count);
 	}
 
 	closedir(dp);
@@ -198,8 +228,8 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 		    struct fuse_file_info *fi)
 {
-  char fpath[1000];
-	char mpath[1000];
+  char fpath[300];
+	char mpath[300];
 	strcpy(mpath, path);
 
 	// Nomor 1 
@@ -228,40 +258,150 @@ static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 	return res;
 }
 
-//static int xmp_create(const char *path, mode_t mode, struct fuse_file_info *fi);
-/*
+static int xmp_mkdir(const char *path, mode_t mode)
 {
-  char fpath[1000];
-	char mpath[1000];
+	int res;
+	char fpath[300];
+	char mpath[300];
 	strcpy(mpath, path);
 
-	// Nomor 1 
 	encrypt(mpath);
+	if(strcmp(mpath, "/") == 0)
+	{
+		path = dirpath;
+		sprintf(fpath, "%s", path);
+	}
+	else sprintf(fpath, "%s%s", dirpath, mpath);
 
-	if(strcmp(mpath,"/") == 0)
+	res = mkdir(fpath, mode);
+	if(res)
+		return errno;
+	
+	return 0;
+}
+
+static int xmp_rmdir(const char *path)
+{
+	int res;
+	char fpath[300];
+	char mpath[300];
+	strcpy(mpath, path);
+
+	encrypt(mpath);
+	if(strcmp(mpath, "/") == 0)
+	{
+		path = dirpath;
+		sprintf(fpath, "%s", path);
+	}
+	else sprintf(fpath, "%s%s", dirpath, mpath);
+
+	res = rmdir(fpath);
+	if(res)
+		return errno;
+	
+	return 0;
+}
+
+static int xmp_chmod(const char *path, mode_t mode)
+{
+	int res;
+	char fpath[300];
+	char mpath[300];
+	strcpy(mpath, path);
+
+	encrypt(mpath);
+	if(strcmp(mpath, "/") == 0)
+	{
+		path = dirpath;
+		sprintf(fpath, "%s", path);
+	}
+	else sprintf(fpath, "%s%s", dirpath, mpath);
+
+	res = chmod(fpath, mode);
+	if(res)
+		return errno;
+	
+	return 0;
+}
+
+static int xmp_chown(const char *path, uid_t uid, gid_t gid)
+{
+	int res;
+	char fpath[300], mpath[300];
+	strcpy(mpath, path);
+
+	encrypt(mpath);
+	if(strcmp(mpath, "/") == 0)
+	{
+		path = dirpath;
+		sprintf(fpath, "%s", path);
+	}
+	else sprintf(fpath, "%s%s", dirpath, mpath);
+
+	res = lchown(fpath, uid, gid);
+	if(res)
+		return errno;
+	
+	return 0;
+}
+
+static int xmp_create(const char *path, mode_t mode, struct fuse_file_info *fi) 
+{
+  int res; // , a;
+	char fpath[300], mpath[300]; // , newpath[400];
+	strcpy(mpath, path);
+	
+	encrypt(mpath);
+	if(strcmp(mpath,"/") == 0) 
 	{
 		path=dirpath;
 		sprintf(fpath,"%s",path);
 	}
-	else sprintf(fpath, "%s%s",dirpath,mpath);
+	else sprintf(fpath, "%s%s", dirpath, mpath);
 
-	int res;
-	(void) fi;
-	res = 
+	// Nope
+	// if(strstr(path, "YOUTUBER"))
+	// {
+	// 	for(a = 0; a < strlen(path); a++)
+	// 	{
+	// 		if(a + 8 < strlen(path))
+	// 		{
+	// 			if(path[a] == 'Y' && path[a + 1] == 'O' && path[a + 2] == 'U' &&
+	// 			 path[a + 3] == 'T' && path[a + 4] == 'U' && path[a + 5] == 'B' &&
+	// 			 path[a + 6] == 'E' && path [a + 7] == 'R' && path [a + 8] == '/')
+	// 			 {
+	// 				 	res = creat(fpath, 640);
+	// 					sprintf(newpath, "%soD)4", fpath);
+	// 					char *argv[] = {"mv", fpath, newpath, NULL};
+	// 					execv("/bin/mv", argv);
+	// 			 }
+	// 			 else res = creat(fpath, mode);
+	// 		}
+	// 	}
+	// }
+	// else res = creat(fpath, mode);
+
+	res = creat(fpath, mode);
+
+	if (res == -1)
+			return -errno;
+
+	return 0;
 }
-*/
 
 static struct fuse_operations xmp_oper = {
 	.getattr	= xmp_getattr,
 	.readdir	= xmp_readdir,
 	.read		= xmp_read,
-	// .create		= xmp_create,
+	.mkdir = xmp_mkdir,
+	.rmdir = xmp_rmdir,
+	.chmod = xmp_chmod,
+	.chown = xmp_chown,
+	.create		= xmp_create,
 };
 
 int main(int argc, char *argv[])
 {
 	umask(0);
-	fuse_main(argc, argv, &xmp_oper, NULL);
-	
-	return 0;
+	return fuse_main(argc, argv, &xmp_oper, NULL);
 }
